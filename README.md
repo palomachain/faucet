@@ -24,8 +24,10 @@ Run it with the mnemonic and recaptcha key as env vars.
 
 ```bash
 docker run -p 3000:3000 \
-    -e MNEMONIC=$MY_MNEMONIC \
-    -e RECAPTCHA_KEY=$RECAPTCHA_KEY \
-    -e PORT=8080 \  # default to 3000
+    -e MNEMONIC="$(cat mnemonic.txt)" \
+    -e RECAPTCHA_KEY=potato \
+    -e PORT=8080 \
+    -e LCD_URL=http://165.232.91.129:1317 \
+    -e CHAIN_ID=paloma \
     faucet
 ```
