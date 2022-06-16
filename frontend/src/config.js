@@ -1,6 +1,6 @@
 export const networks = [
   {
-    chainId: 'pisco-1',
-    faucetUrl: 'https://pisco-faucet.terra.dev/claim',
+    chainId: 'paloma-1',
+    faucetUrl: 'http://faucet.palomaswap.com',
   },
 ];

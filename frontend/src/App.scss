@@ -1,5 +1,7 @@
+@import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@300&display=swap');
+
 .material-icons {
-  font-family: 'Material Icons';
+  font-family: 'Work Sans', sans-serif;
   font-weight: normal;
   font-style: normal;
   font-size: 16px; /* Preferred icon size */
@@ -26,7 +28,7 @@
 }
 
 header {
-  background: #2845ae url(./assets/terra_faucet.svg) top 15px left 20px
+  background: #2845ae url(./assets/paloma_faucet.png) top 15px left 20px
     no-repeat;
   background-size: 120px auto;
   text-align: right;

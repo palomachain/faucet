@@ -19,7 +19,7 @@ const SelectNetworks = (props) => {
         ))}
       </select>
       <div className={s.addon}>
-        <i className="material-icons">arrow_drop_down</i>
+        <i className="material-icons">&#11015;</i>
       </div>
     </div>
   );
