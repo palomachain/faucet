@@ -147,16 +147,16 @@ class HomeComponent extends React.Component {
           pauseOnHover
         />
         <section>
-          <h2>Terra Testnet Faucet</h2>
+          <h2>Paloma Testnet Faucet</h2>
           <article>
             Hello intrepid spaceperson! Use this faucet to get tokens for the
-            latest Terra testnet. Please don't abuse this service—the number of
+            latest Paloma testnet. Please don't abuse this service—the number of
             available tokens is limited.
           </article>
           <div className="recaptcha">
             <ReCAPTCHA
               ref={this.recaptchaRef}
-              sitekey="6Ld4w4cUAAAAAJceMYGpOTpjiJtMS_xvzOg643ix"
+              sitekey="6Le7bHcgAAAAADVJmQmNw2E1ACMwS-mkuarfahTc"
               onChange={this.handleCaptcha}
             />
           </div>
@@ -199,30 +199,6 @@ class HomeComponent extends React.Component {
               </Form>
             )}
           </Formik>
-        </section>
-        <section>
-          <h2>Don't you have a testnet address?</h2>
-          <article>
-            There's two ways to get one. The first is by using Station, the
-            crypto wallet for Terra. If you know command-line-fu, you can also
-            generate an address with the Terra SDK.
-          </article>
-          <div className="buttonContainer">
-            <button className="light">
-              <i aria-hidden="true" className="material-icons">
-                supervisor_account
-              </i>
-              <span>
-                <a
-                  href="https://docs.terra.money/Tutorials/Get-started/Use-Terra-Station.html"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Join the latest testnet
-                </a>
-              </span>
-            </button>
-          </div>
         </section>
       </div>
     );

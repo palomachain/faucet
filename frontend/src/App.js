@@ -15,9 +15,7 @@ class App extends Component {
           <SelectNetworks className="network_select" />
         </header>
         <Route exact path="/" component={Home} />
-        <footer>
-          &copy; 2019-{this.showCurrentYear()} <span>Terra</span>
-        </footer>
+        <footer></footer>
       </Router>
     );
   }
