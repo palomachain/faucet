@@ -74,29 +74,38 @@ class HomeComponent extends React.Component {
     axios
       .post(network.faucetUrl, {
         address: values.address,
-        denom: values.denom,
+        denom: 'ugrain',
         response: this.state.response,
       })
       .then((res) => {
-        const { amount } = res.data;
-        const response = res.data.response['tx_response'] || res.data.response;
+        let text = res.data;
 
-        if (response.code) {
-          toast.error(`Error: ${response.raw_log || `code: ${response.code}`}`);
-        } else {
-          const url = `https://finder.terra.money/testnet/tx/${response.txhash}`;
+        if (text === '') {
           toast.success(
             <div>
-              <p>
-                Successfully Sent {amount / 1000000}
-                {DENUMS_TO_TOKEN[values.denom]} to {values.address}
-              </p>
-              <a href={url} target="_blank" rel="noopener noreferrer">
-                Go to explorer
-              </a>
+              <p>Tokens Sent!</p>
+            </div>
+          );
+        } else {
+          toast.error(
+            <div>
+              <p>{text}</p>
             </div>
           );
         }
+
+        // console.log(res);
+        // //const response = res.data.response['tx_response'] || res.data.response;
+        //
+        //
+        //   //const url = `https://finder.terra.money/testnet/tx/${response.txhash}`;
+        // toast.success(
+        //   <div>
+        //     <p>
+        //       {text}
+        //     </p>
+        //   </div>
+        // );
 
         resetForm();
       })
