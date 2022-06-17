@@ -1,6 +1,6 @@
 export const networks = [
   {
-    chainId: 'paloma-1',
-    faucetUrl: 'https://faucet.palomaswap.com',
+    chainId: 'paloma',
+    faucetUrl: 'https://backend.faucet.palomaswap.com',
   },
 ];
