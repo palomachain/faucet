@@ -16,7 +16,7 @@ import NetworkContext from '../contexts/NetworkContext';
 const validateWalletAddress = (str) => {
   try {
     const { prefix } = bech32.decode(str);
-    if (prefix !== 'terra') {
+    if (prefix !== 'paloma') {
       throw new Error('Invalid address');
     }
   } catch {
