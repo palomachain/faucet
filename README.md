@@ -1,8 +1,6 @@
 # Terra Testnet Faucet
 
-![banner](./terra-faucet.png)
-
-Terra Testnet Faucet is a client tool that allows anyone to easily request a nominal amount of Terra or Luna assets for testing purposes. This app needs to be deployed on a Terra testnet full node, because it relies on using the `terracli` command to send tokens.
+Paloma Testnet Faucet is a client tool that allows anyone to easily request a nominal amount of Terra or Luna assets for testing purposes. This app needs to be deployed on a Paloma testnet full node.
 
 **WARNING**: Tokens recieved over the faucet are not real assets and have no market value.
 
@@ -10,7 +8,7 @@ This faucet implementation is a fork of the [Cosmos Faucet](https://github.com/c
 
 ## Get tokens on Terra testnets
 
-Using the testnets is really easy. Simply go to https://faucet.terra.money, chose your network and input your testnet address. 
+Using the testnets is really easy. Simply go to https://github.com/palomachain/paloma and follow the instructions to get GRAINs. 
 
 ## Usage
 
