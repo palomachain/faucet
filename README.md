@@ -1,6 +1,6 @@
-# Terra Testnet Faucet
+# Paloma Testnet Faucet
 
-Paloma Testnet Faucet is a client tool that allows anyone to easily request a nominal amount of Terra or Luna assets for testing purposes. This app needs to be deployed on a Paloma testnet full node.
+Paloma Testnet Faucet is a client tool that allows anyone to easily request a nominal amount of Paloma GRAINs and Paloma assets for testing purposes. This app needs to be deployed on a Paloma testnet full node.
 
 **WARNING**: Tokens recieved over the faucet are not real assets and have no market value.
 
