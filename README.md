@@ -6,11 +6,13 @@ Paloma Testnet Faucet is a client tool that allows anyone to easily request a no
 
 This faucet implementation is a fork of the [Cosmos Faucet](https://github.com/cosmos/faucet).
 
-## Get tokens on Terra testnets
+## Get tokens on Paloma testnets
 
 Using the testnets is really easy. Simply go to https://github.com/palomachain/paloma and follow the instructions to get GRAINs. 
 
 ## Usage
+For FE development see [Readme in frontend folder](https://github.com/palomachain/faucet/tree/main/frontend)
+
 
 Build the docker image.
 
