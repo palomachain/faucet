@@ -260,7 +260,7 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 		if captchaErr != nil {
 			panic(captchaErr)
 		}
-		if captchaPassed {
+		if !captchaPassed {
 			err := errors.New("captcha failed, please refresh page and try again")
 			panic(err)
 		}
