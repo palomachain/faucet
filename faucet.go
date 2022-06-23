@@ -2,11 +2,12 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -18,33 +19,29 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dpapathanasiou/go-recaptcha"
 	"github.com/rs/cors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tendermint/tmlibs/bech32"
 	"github.com/tomasen/realip"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/go-bip39"
-
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 
 	"github.com/cosmos/cosmos-sdk/x/auth/signing"
 	"github.com/terra-money/core/v2/app"
 	"github.com/terra-money/core/v2/app/params"
 
-	"github.com/PagerDuty/go-pagerduty"
 	//"github.com/tendermint/tendermint/crypto"
 
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
+	bip39 "github.com/cosmos/go-bip39"
 
-	//"github.com/tendermint/tendermint/crypto/secp256k1"
 	"github.com/cosmos/cosmos-sdk/client"
 	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
 var mnemonic string
+var privkey string
 var recaptchaKey string
 var port string
 var lcdURL string
@@ -59,39 +56,29 @@ var cdc *params.EncodingConfig
 var mtx sync.Mutex
 var isClassic bool
 
-type PagerdutyConfig struct {
-	token     string
-	user      string
-	serviceID string
-}
-
-var pagerdutyConfig PagerdutyConfig
-
 const ( // new core hasn't these yet.
 	MicroUnit              = int64(1e6)
 	fullFundraiserPath     = "m/44'/330'/0'/0/0"
-	accountAddresPrefix    = "terra"
-	accountPubKeyPrefix    = "terrapub"
-	validatorAddressPrefix = "terravaloper"
-	validatorPubKeyPrefix  = "terravaloperpub"
-	consNodeAddressPrefix  = "terravalcons"
-	consNodePubKeyPrefix   = "terravalconspub"
+	accountAddresPrefix    = "paloma"
+	accountPubKeyPrefix    = "palomapub"
+	validatorAddressPrefix = "palomavaloper"
+	validatorPubKeyPrefix  = "palomavaloperpub"
+	consNodeAddressPrefix  = "palomavalcons"
+	consNodePubKeyPrefix   = "palomavalconspub"
 )
 
 var amountTable = map[string]int64{
-	app.BondDenom: 5 * MicroUnit,
+	"ugrain": 5 * MicroUnit,
 }
 
 const (
-	requestLimitSecs      = 30
-	mnemonicVar           = "MNEMONIC"
-	recaptchaKeyVar       = "RECAPTCHA_KEY"
-	portVar               = "PORT"
-	lcdUrlVar             = "LCD_URL"
-	chainIDVar            = "CHAIN_ID"
-	pagerdutyTokenVar     = "PAGERDUTY_TOKEN"
-	pagerdutyUserVar      = "PAGERDUTY_USER"
-	pagerdutyServiceIDVar = "PAGERDUTY_SERVICE_ID"
+	requestLimitSecs = 30
+	mnemonicVar      = "MNEMONIC"
+	privkeyVar       = "PRIV_KEY"
+	recaptchaKeyVar  = "RECAPTCHA_KEY"
+	portVar          = "PORT"
+	lcdUrlVar        = "LCD_URL"
+	chainIDVar       = "CHAIN_ID"
 )
 
 // Claim wraps a faucet claim
@@ -139,6 +126,7 @@ func loadAccountInfo() {
 	}
 
 	bodyStr := string(body)
+	fmt.Printf(bodyStr)
 	var seq uint64
 
 	if strings.Contains(bodyStr, `"sequence"`) {
@@ -168,7 +156,7 @@ type BalanceResponse struct {
 }
 
 func getBalance(address string) (amount int64) {
-	url := fmt.Sprintf("%v/cosmos/bank/v1beta1/balances/%v/by_denom?denom=uluna", lcdURL, address)
+	url := fmt.Sprintf("%v/cosmos/bank/v1beta1/balances/%v/by_denom?denom=ugrain", lcdURL, address)
 	response, err := http.Get(url)
 
 	if err != nil {
@@ -229,7 +217,7 @@ func (requestLog *RequestLog) dripCoin(denom string) error {
 }
 
 func checkAndUpdateLimit(db *leveldb.DB, account []byte, denom string) error {
-	address, _ := bech32.ConvertAndEncode("terra", account)
+	address, _ := bech32.ConvertAndEncode("paloma", account)
 
 	if getBalance(address) >= amountTable[denom]*2 {
 		return errors.New("amount limit exceeded")
@@ -278,7 +266,7 @@ func checkAndUpdateLimit(db *leveldb.DB, account []byte, denom string) error {
 func drip(encodedAddress string, denom string, amount int64, isDetectMismatch bool) string {
 	builder := app.MakeEncodingConfig().TxConfig.NewTxBuilder()
 
-	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(200_000))))
+	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin("ugrain", sdk.NewInt(0))))
 	builder.SetGasLimit(150_000)
 	builder.SetMemo("faucet")
 	builder.SetTimeoutHeight(0)
@@ -336,11 +324,12 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 
 		// make sure captcha is valid
 		clientIP := realip.FromRequest(request)
-		captchaResponse := claim.Response
-		captchaPassed, captchaErr := recaptcha.Confirm(clientIP, captchaResponse)
-		if captchaErr != nil {
-			panic(captchaErr)
-		}
+		//captchaResponse := claim.Response
+		//captchaPassed, captchaErr := recaptcha.Confirm(clientIP, captchaResponse)
+		//if captchaErr != nil {
+		//	panic(captchaErr)
+		//}
+		captchaPassed := true
 
 		// Limiting request speed
 		limitErr := checkAndUpdateLimit(db, decodedAddress, claim.Denom)
@@ -374,12 +363,6 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 			}
 
 			fmt.Printf("%v seq %v %v\n", time.Now().UTC().Format(time.RFC3339), sequence, body)
-
-			// Create an incident for broadcast error
-			if (isClassic && strings.Contains(body, "code")) ||
-				(!isClassic && !strings.Contains(body, "\"code\": 0")) {
-				createIncident(body)
-			}
 
 			w.Header().Set("Content-Type", "application/json")
 			fmt.Fprintf(w, `{"amount": %v, "response": %v}`, amount, body)
@@ -479,6 +462,7 @@ func signAndBroadcast(txBuilder client.TxBuilder, isDetectMismatch bool) string 
 		panic(err)
 	}
 
+	fmt.Println(stringBody)
 	code, err := strconv.ParseUint(parseRegexp(`"code": ?(\d+)?`, stringBody), 10, 64)
 	if err != nil {
 		panic("failed to parse code from tx response")
@@ -494,23 +478,6 @@ func signAndBroadcast(txBuilder client.TxBuilder, isDetectMismatch bool) string 
 	return stringBody
 }
 
-func createIncident(body string) (*pagerduty.Incident, error) {
-	client := pagerduty.NewClient(pagerdutyConfig.token)
-	input := &pagerduty.CreateIncidentOptions{
-		Title:   "Faucet had an error",
-		Urgency: "low",
-		Service: &pagerduty.APIReference{
-			ID:   pagerdutyConfig.serviceID,
-			Type: "service",
-		},
-		Body: &pagerduty.APIDetails{
-			Details: body,
-		},
-	}
-
-	return client.CreateIncidentWithContext(context.Background(), pagerdutyConfig.user, input)
-}
-
 func main() {
 	mnemonic = os.Getenv(mnemonicVar)
 
@@ -519,6 +486,11 @@ func main() {
 	}
 	if !bip39.IsMnemonicValid(mnemonic) {
 		panic("invalid mnemonic")
+	}
+
+	privkey = os.Getenv(privkeyVar)
+	if privkey == "" {
+		panic("PRIV_KEY variable is required")
 	}
 
 	recaptchaKey = os.Getenv(recaptchaKeyVar)
@@ -544,19 +516,6 @@ func main() {
 	if chainID == "" {
 		panic("CHAIN_ID variable is required")
 	}
-	if strings.HasPrefix(chainID, "bombay") {
-		isClassic = true
-	} else {
-		isClassic = false
-	}
-
-	pagerdutyConfig.token = os.Getenv(pagerdutyTokenVar)
-	pagerdutyConfig.user = os.Getenv(pagerdutyUserVar)
-	pagerdutyConfig.serviceID = os.Getenv(pagerdutyServiceIDVar)
-
-	if pagerdutyConfig.token == "" || pagerdutyConfig.user == "" || pagerdutyConfig.serviceID == "" {
-		panic("PAGERDUTY_TOKEN, PAGERDUTY_USER, and PAGERDUTY_SERVICE_ID variables are required")
-	}
 
 	db, err := leveldb.OpenFile("db/ipdb", nil)
 	if err != nil {
@@ -566,15 +525,20 @@ func main() {
 
 	cdc = newCodec()
 
-	derivedPriv, err := hd.Secp256k1.Derive()(mnemonic, "", fullFundraiserPath)
+	//derivedPriv, err := hd.Secp256k1.Derive()(mnemonic, "", fullFundraiserPath)
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	secret, err := hex.DecodeString(privkey)
 	if err != nil {
 		panic(err)
 	}
-
+	privKey = &secp256k1.PrivKey{Key: secret}
 	//privKey = *secp256k1.GenPrivKeyFromSecret(derivedPriv)
-	privKey = hd.Secp256k1.Generate()(derivedPriv)
+	//privKey = hd.Secp256k1.Generate()(derivedPriv)
 	pubk := privKey.PubKey()
-	address, err = bech32.ConvertAndEncode("terra", pubk.Address())
+	address, err = bech32.ConvertAndEncode("paloma", pubk.Address())
 	if err != nil {
 		panic(err)
 	}
@@ -582,7 +546,7 @@ func main() {
 	// Load account number and sequence
 	loadAccountInfo()
 
-	recaptcha.Init(recaptchaKey)
+	//recaptcha.Init(recaptchaKey)
 
 	// Application server.
 	mux := http.NewServeMux()
@@ -591,7 +555,7 @@ func main() {
 	mux.HandleFunc("/claim", createGetCoinsHandler(db))
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://faucet.terra.money", "http://localhost", "localhost", "http://localhost:3000", "http://localhost:8080"},
+		AllowedOrigins:   []string{"https://faucet.palomachain.com", "http://localhost", "localhost", "http://localhost:3000", "http://localhost:8080"},
 		AllowCredentials: true,
 	})
 
