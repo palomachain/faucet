@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cosmos/cosmos-sdk/crypto/keys/secp256k1"
 	"github.com/dpapathanasiou/go-recaptcha"
 
 	"github.com/rs/cors"
@@ -26,27 +24,16 @@ import (
 
 	"github.com/terra-money/core/v2/app"
 	"github.com/terra-money/core/v2/app/params"
-
 	//"github.com/tendermint/tendermint/crypto"
-
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 )
 
-var mnemonic string
-var privkey string
 var recaptchaKey string
 var palomad string
 var port string
-var lcdURL string
 var chainID string
-var privKey cryptotypes.PrivKey
 var rpcUrl string
 
-//var privKey crypto.PrivKey
-var address string
-var sequence uint64
-var accountNumber uint64
-var cdc *params.EncodingConfig
+var bankAddress string
 var mtx sync.Mutex
 var isClassic bool
 
@@ -62,7 +49,7 @@ const ( // new core hasn't these yet.
 )
 
 var amountTable = map[string]int64{
-	"ugrain": MicroUnit,
+	"ugrain": 1000 * MicroUnit,
 }
 
 const (
@@ -298,7 +285,7 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 			"--broadcast-mode", "block",
 			"--chain-id", chainID,
 			"--fees", "200000ugrain",
-			address,
+			bankAddress,
 			encodedAddress,
 			fmt.Sprintf("%d%s", amount, claim.Denom),
 		)
@@ -321,9 +308,9 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 
 func main() {
 
-	privkey = os.Getenv(privkeyVar)
-	if privkey == "" {
-		panic("PRIV_KEY variable is required")
+	bankAddress = os.Getenv("BANK_ADDR")
+	if bankAddress == "" {
+		panic("BANK_ADDR variable is required")
 	}
 
 	palomad = os.Getenv("PALOMA_CMD")
@@ -359,21 +346,6 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
-
-	cdc = newCodec()
-
-	secret, err := hex.DecodeString(privkey)
-	if err != nil {
-		panic(err)
-	}
-
-	privKey = &secp256k1.PrivKey{Key: secret}
-	pubk := privKey.PubKey()
-
-	address, err = bech32.ConvertAndEncode("paloma", pubk.Address())
-	if err != nil {
-		panic(err)
-	}
 
 	recaptcha.Init(recaptchaKey)
 
