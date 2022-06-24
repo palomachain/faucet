@@ -19,11 +19,6 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tendermint/tmlibs/bech32"
 	"github.com/tomasen/realip"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-
-	"github.com/terra-money/core/v2/app"
-	"github.com/terra-money/core/v2/app/params"
 	//"github.com/tendermint/tendermint/crypto"
 )
 
@@ -73,20 +68,6 @@ type Claim struct {
 type Coin struct {
 	Denom  string `json:"denom"`
 	Amount int64  `json:"amount"`
-}
-
-func newCodec() *params.EncodingConfig {
-	ec := app.MakeEncodingConfig()
-
-	config := sdk.GetConfig()
-	config.SetCoinType(app.CoinType)
-	config.SetFullFundraiserPath(fullFundraiserPath)
-	config.SetBech32PrefixForAccount(accountAddresPrefix, accountPubKeyPrefix)
-	config.SetBech32PrefixForValidator(validatorAddressPrefix, validatorPubKeyPrefix)
-	config.SetBech32PrefixForConsensusNode(consNodeAddressPrefix, consNodePubKeyPrefix)
-	config.Seal()
-
-	return &ec
 }
 
 type CoreCoin struct {
