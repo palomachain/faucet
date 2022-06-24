@@ -49,7 +49,7 @@ const ( // new core hasn't these yet.
 )
 
 var amountTable = map[string]int64{
-	"ugrain": 1e5 * MicroUnit,
+	"ugrain": 10 * MicroUnit,
 }
 
 const (
