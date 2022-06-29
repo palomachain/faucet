@@ -1,97 +1,60 @@
 package main
 
 import (
-	"bytes"
-	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
-	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/dpapathanasiou/go-recaptcha"
+
 	"github.com/rs/cors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tendermint/tmlibs/bech32"
 	"github.com/tomasen/realip"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-	"github.com/cosmos/go-bip39"
-
-	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
-
-	"github.com/cosmos/cosmos-sdk/x/auth/signing"
-	"github.com/terra-money/core/v2/app"
-	"github.com/terra-money/core/v2/app/params"
-
-	"github.com/PagerDuty/go-pagerduty"
 	//"github.com/tendermint/tendermint/crypto"
-
-	"github.com/cosmos/cosmos-sdk/crypto/hd"
-	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
-
-	//"github.com/tendermint/tendermint/crypto/secp256k1"
-	"github.com/cosmos/cosmos-sdk/client"
-	txsigning "github.com/cosmos/cosmos-sdk/types/tx/signing"
 )
 
-var mnemonic string
 var recaptchaKey string
+var palomad string
 var port string
-var lcdURL string
 var chainID string
-var privKey cryptotypes.PrivKey
+var rpcUrl string
 
-//var privKey crypto.PrivKey
-var address string
-var sequence uint64
-var accountNumber uint64
-var cdc *params.EncodingConfig
+var bankAddress string
 var mtx sync.Mutex
 var isClassic bool
-
-type PagerdutyConfig struct {
-	token     string
-	user      string
-	serviceID string
-}
-
-var pagerdutyConfig PagerdutyConfig
 
 const ( // new core hasn't these yet.
 	MicroUnit              = int64(1e6)
 	fullFundraiserPath     = "m/44'/330'/0'/0/0"
-	accountAddresPrefix    = "terra"
-	accountPubKeyPrefix    = "terrapub"
-	validatorAddressPrefix = "terravaloper"
-	validatorPubKeyPrefix  = "terravaloperpub"
-	consNodeAddressPrefix  = "terravalcons"
-	consNodePubKeyPrefix   = "terravalconspub"
+	accountAddresPrefix    = "paloma"
+	accountPubKeyPrefix    = "palomapub"
+	validatorAddressPrefix = "palomavaloper"
+	validatorPubKeyPrefix  = "palomavaloperpub"
+	consNodeAddressPrefix  = "palomavalcons"
+	consNodePubKeyPrefix   = "palomavalconspub"
 )
 
 var amountTable = map[string]int64{
-	app.BondDenom: 5 * MicroUnit,
+	"ugrain": 10 * MicroUnit,
 }
 
 const (
-	requestLimitSecs      = 30
-	mnemonicVar           = "MNEMONIC"
-	recaptchaKeyVar       = "RECAPTCHA_KEY"
-	portVar               = "PORT"
-	lcdUrlVar             = "LCD_URL"
-	chainIDVar            = "CHAIN_ID"
-	pagerdutyTokenVar     = "PAGERDUTY_TOKEN"
-	pagerdutyUserVar      = "PAGERDUTY_USER"
-	pagerdutyServiceIDVar = "PAGERDUTY_SERVICE_ID"
+	requestLimitSecs = 30
+	mnemonicVar      = "MNEMONIC"
+	privkeyVar       = "PRIV_KEY"
+	recaptchaKeyVar  = "RECAPTCHA_KEY"
+	portVar          = "PORT"
+	lcdUrlVar        = "LCD_URL"
+	chainIDVar       = "CHAIN_ID"
 )
 
 // Claim wraps a faucet claim
@@ -107,57 +70,6 @@ type Coin struct {
 	Amount int64  `json:"amount"`
 }
 
-func newCodec() *params.EncodingConfig {
-	ec := app.MakeEncodingConfig()
-
-	config := sdk.GetConfig()
-	config.SetCoinType(app.CoinType)
-	config.SetFullFundraiserPath(fullFundraiserPath)
-	config.SetBech32PrefixForAccount(accountAddresPrefix, accountPubKeyPrefix)
-	config.SetBech32PrefixForValidator(validatorAddressPrefix, validatorPubKeyPrefix)
-	config.SetBech32PrefixForConsensusNode(consNodeAddressPrefix, consNodePubKeyPrefix)
-	config.Seal()
-
-	return &ec
-}
-
-func loadAccountInfo() {
-	// Query current faucet sequence
-	url := fmt.Sprintf("%v/cosmos/auth/v1beta1/accounts/%v", lcdURL, address)
-	response, err := http.Get(url)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	defer response.Body.Close()
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-
-	bodyStr := string(body)
-	var seq uint64
-
-	if strings.Contains(bodyStr, `"sequence"`) {
-		seq, _ = strconv.ParseUint(parseRegexp(`"sequence": "?(\d+)"?`, bodyStr), 10, 64)
-	} else {
-		seq = 0
-	}
-
-	sequence = atomic.LoadUint64(&seq)
-
-	if strings.Contains(bodyStr, `"account_number"`) {
-		accountNumber, _ = strconv.ParseUint(parseRegexp(`"account_number": "?(\d+)"?`, bodyStr), 10, 64)
-	} else {
-		accountNumber = 0
-	}
-
-	fmt.Printf("loadAccountInfo: address %v account# %v sequence %v\n", address, accountNumber, sequence)
-}
-
 type CoreCoin struct {
 	Denom  string `json:"denom"`
 	Amount string `json:"amount"`
@@ -168,24 +80,36 @@ type BalanceResponse struct {
 }
 
 func getBalance(address string) (amount int64) {
-	url := fmt.Sprintf("%v/cosmos/bank/v1beta1/balances/%v/by_denom?denom=uluna", lcdURL, address)
-	response, err := http.Get(url)
+	cmd := exec.Command(
+		palomad,
+		"--node", rpcUrl,
+		"q", "bank", "balances",
+		"--output", "json",
+		"--denom", "ugrain",
+		"--chain-id", chainID,
+		address,
+	)
+	res, err := cmd.CombinedOutput()
 
+	if err != nil {
+		fmt.Println("error getting the balance information")
+		fmt.Println(string(res))
+		panic(err)
+	}
+	var balance struct {
+		Amount string `json:"amount"`
+	}
+
+	err = json.Unmarshal(res, &balance)
+	if err != nil {
+		panic(err)
+	}
+	amount, err = strconv.ParseInt(balance.Amount, 10, 64)
 	if err != nil {
 		panic(err)
 	}
 
-	var res BalanceResponse
-
-	decoder := json.NewDecoder(response.Body)
-	decoderErr := decoder.Decode(&res)
-
-	if decoderErr != nil {
-		panic(decoderErr)
-	}
-
-	i, _ := strconv.ParseInt(res.Balance.Amount, 10, 64)
-	return i
+	return amount
 }
 
 func parseRegexp(regexpStr string, target string) (data string) {
@@ -229,7 +153,7 @@ func (requestLog *RequestLog) dripCoin(denom string) error {
 }
 
 func checkAndUpdateLimit(db *leveldb.DB, account []byte, denom string) error {
-	address, _ := bech32.ConvertAndEncode("terra", account)
+	address, _ := bech32.ConvertAndEncode("paloma", account)
 
 	if getBalance(address) >= amountTable[denom]*2 {
 		return errors.New("amount limit exceeded")
@@ -275,32 +199,8 @@ func checkAndUpdateLimit(db *leveldb.DB, account []byte, denom string) error {
 	return nil
 }
 
-func drip(encodedAddress string, denom string, amount int64, isDetectMismatch bool) string {
-	builder := app.MakeEncodingConfig().TxConfig.NewTxBuilder()
-
-	builder.SetFeeAmount(sdk.NewCoins(sdk.NewCoin(app.BondDenom, sdk.NewInt(200_000))))
-	builder.SetGasLimit(150_000)
-	builder.SetMemo("faucet")
-	builder.SetTimeoutHeight(0)
-
-	coins := sdk.NewCoins(sdk.NewCoin(denom, sdk.NewInt(amount)))
-	from, err := sdk.AccAddressFromBech32(address)
-	if err != nil {
-		panic("invalid from address")
-	}
-	to, err := sdk.AccAddressFromBech32(encodedAddress)
-	if err != nil {
-		panic("invalid to address")
-	}
-	sendMsg := banktypes.NewMsgSend(from, to, coins)
-	builder.SetMsgs(sendMsg)
-
-	return signAndBroadcast(builder, isDetectMismatch)
-}
-
 func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
-
 		defer func() {
 			if err := recover(); err != nil {
 				http.Error(w, err.(error).Error(), 400)
@@ -341,6 +241,11 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 		if captchaErr != nil {
 			panic(captchaErr)
 		}
+		if !captchaPassed {
+			err := errors.New("captcha failed, please refresh page and try again")
+			panic(err)
+		}
+		// send the coins!
 
 		// Limiting request speed
 		limitErr := checkAndUpdateLimit(db, decodedAddress, claim.Denom)
@@ -348,177 +253,55 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 			panic(limitErr)
 		}
 
-		// send the coins!
-		if captchaPassed {
-			mtx.Lock()
-			defer mtx.Unlock()
+		mtx.Lock()
+		defer mtx.Unlock()
 
-			fmt.Println(time.Now().UTC().Format(time.RFC3339), "req", clientIP, encodedAddress, amount, claim.Denom)
-			body := drip(encodedAddress, claim.Denom, amount, true)
+		fmt.Println(time.Now().UTC().Format(time.RFC3339), "req", clientIP, encodedAddress, amount, claim.Denom)
 
-			// Sequence mismatch if the body length is zero
-			if len(body) == 0 {
-				// Reload for self healing and re-drip
-				loadAccountInfo()
-				body = drip(encodedAddress, claim.Denom, amount, true)
+		cmd := exec.Command(
+			palomad,
+			"--node", rpcUrl,
+			"tx", "bank", "send",
+			"-y",
+			"--broadcast-mode", "block",
+			"--chain-id", chainID,
+			"--fees", "200000ugrain",
+			bankAddress,
+			encodedAddress,
+			fmt.Sprintf("%d%s", amount, claim.Denom),
+		)
+		output, err := cmd.CombinedOutput()
 
-				// Another try without loading....
-				if len(body) == 0 {
-					atomic.AddUint64(&sequence, 1)
-					body = drip(encodedAddress, claim.Denom, amount, false)
-				}
-			}
-
-			if len(body) != 0 {
-				atomic.AddUint64(&sequence, 1)
-			}
-
-			fmt.Printf("%v seq %v %v\n", time.Now().UTC().Format(time.RFC3339), sequence, body)
-
-			// Create an incident for broadcast error
-			if (isClassic && strings.Contains(body, "code")) ||
-				(!isClassic && !strings.Contains(body, "\"code\": 0")) {
-				createIncident(body)
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"amount": %v, "response": %v}`, amount, body)
-		} else {
-			err := errors.New("captcha failed, please refresh page and try again")
-			panic(err)
+		if err != nil {
+			fmt.Printf("error running a command: %s\n", err)
+			fmt.Println("output:")
+			fmt.Println(string(output))
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
+
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `{"amount": %v}`, amount)
+		return
+
 	}
-}
-
-// BroadcastReq defines a tx broadcasting request.
-type BroadcastReq struct {
-	Tx   string `json:"tx_bytes"`
-	Mode string `json:"mode"`
-}
-
-func signAndBroadcast(txBuilder client.TxBuilder, isDetectMismatch bool) string {
-	var broadcastReq BroadcastReq
-
-	pubKey := privKey.PubKey()
-
-	// no need to sort amount because there's only one amount.
-
-	// create signature v2
-	signMode := cdc.TxConfig.SignModeHandler().DefaultMode()
-
-	signerData := signing.SignerData{
-		ChainID:       chainID,
-		AccountNumber: accountNumber,
-		Sequence:      sequence,
-	}
-	sigData := txsigning.SingleSignatureData{
-		SignMode:  signMode,
-		Signature: nil,
-	}
-	sigv2 := txsigning.SignatureV2{
-		PubKey:   pubKey,
-		Data:     &sigData,
-		Sequence: sequence,
-	}
-	txBuilder.SetSignatures(sigv2)
-	bytesToSign, err := cdc.TxConfig.SignModeHandler().GetSignBytes(signMode, signerData, txBuilder.GetTx())
-	if err != nil {
-		panic(err)
-	}
-
-	sig, err := privKey.Sign(bytesToSign)
-	if err != nil {
-		panic(err)
-	}
-
-	sigData = txsigning.SingleSignatureData{
-		SignMode:  signMode,
-		Signature: sig,
-	}
-	sigv2 = txsigning.SignatureV2{
-		PubKey:   pubKey,
-		Data:     &sigData,
-		Sequence: sequence,
-	}
-
-	txBuilder.SetSignatures(sigv2)
-
-	// encode signed tx
-	bz, err := cdc.TxConfig.TxEncoder()(txBuilder.GetTx())
-	if err != nil {
-		panic(err)
-	}
-
-	// prepare to broacast
-	broadcastReq.Tx = base64.StdEncoding.EncodeToString(bz)
-	broadcastReq.Mode = "BROADCAST_MODE_SYNC"
-
-	txBz, err := json.Marshal(broadcastReq)
-	if err != nil {
-		panic(err)
-	}
-
-	// broadcast
-	url := fmt.Sprintf("%v/cosmos/tx/v1beta1/txs", lcdURL)
-	response, err := http.Post(url, "application/json", bytes.NewReader(txBz))
-	if err != nil {
-		panic(err)
-	}
-
-	defer response.Body.Close()
-
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		panic(err)
-	}
-
-	stringBody := string(body)
-
-	if response.StatusCode != 200 {
-		err := fmt.Errorf("status: %v, message: %v", response.Status, stringBody)
-		panic(err)
-	}
-
-	code, err := strconv.ParseUint(parseRegexp(`"code": ?(\d+)?`, stringBody), 10, 64)
-	if err != nil {
-		panic("failed to parse code from tx response")
-	}
-	if code != 0 {
-		panic(parseRegexp(`"raw_log": "?(\d+)"?`, stringBody))
-	}
-
-	if isDetectMismatch && strings.Contains(stringBody, "sequence mismatch") {
-		return ""
-	}
-
-	return stringBody
-}
-
-func createIncident(body string) (*pagerduty.Incident, error) {
-	client := pagerduty.NewClient(pagerdutyConfig.token)
-	input := &pagerduty.CreateIncidentOptions{
-		Title:   "Faucet had an error",
-		Urgency: "low",
-		Service: &pagerduty.APIReference{
-			ID:   pagerdutyConfig.serviceID,
-			Type: "service",
-		},
-		Body: &pagerduty.APIDetails{
-			Details: body,
-		},
-	}
-
-	return client.CreateIncidentWithContext(context.Background(), pagerdutyConfig.user, input)
 }
 
 func main() {
-	mnemonic = os.Getenv(mnemonicVar)
 
-	if mnemonic == "" {
-		panic("MNEMONIC variable is required")
+	bankAddress = os.Getenv("BANK_ADDR")
+	if bankAddress == "" {
+		panic("BANK_ADDR variable is required")
 	}
-	if !bip39.IsMnemonicValid(mnemonic) {
-		panic("invalid mnemonic")
+
+	palomad = os.Getenv("PALOMA_CMD")
+	if palomad == "" {
+		panic("PALOMA_CMD variable is required")
+	}
+
+	rpcUrl = os.Getenv("NODE_RPC_URL")
+	if palomad == "" {
+		panic("NODE_RPC_URL variable is required")
 	}
 
 	recaptchaKey = os.Getenv(recaptchaKeyVar)
@@ -533,29 +316,10 @@ func main() {
 		port = "3000"
 	}
 
-	lcdURL = os.Getenv(lcdUrlVar)
-
-	if lcdURL == "" {
-		panic("LCD_URL variable is required")
-	}
-
 	chainID = os.Getenv(chainIDVar)
 
 	if chainID == "" {
 		panic("CHAIN_ID variable is required")
-	}
-	if strings.HasPrefix(chainID, "bombay") {
-		isClassic = true
-	} else {
-		isClassic = false
-	}
-
-	pagerdutyConfig.token = os.Getenv(pagerdutyTokenVar)
-	pagerdutyConfig.user = os.Getenv(pagerdutyUserVar)
-	pagerdutyConfig.serviceID = os.Getenv(pagerdutyServiceIDVar)
-
-	if pagerdutyConfig.token == "" || pagerdutyConfig.user == "" || pagerdutyConfig.serviceID == "" {
-		panic("PAGERDUTY_TOKEN, PAGERDUTY_USER, and PAGERDUTY_SERVICE_ID variables are required")
 	}
 
 	db, err := leveldb.OpenFile("db/ipdb", nil)
@@ -563,24 +327,6 @@ func main() {
 		panic(err)
 	}
 	defer db.Close()
-
-	cdc = newCodec()
-
-	derivedPriv, err := hd.Secp256k1.Derive()(mnemonic, "", fullFundraiserPath)
-	if err != nil {
-		panic(err)
-	}
-
-	//privKey = *secp256k1.GenPrivKeyFromSecret(derivedPriv)
-	privKey = hd.Secp256k1.Generate()(derivedPriv)
-	pubk := privKey.PubKey()
-	address, err = bech32.ConvertAndEncode("terra", pubk.Address())
-	if err != nil {
-		panic(err)
-	}
-
-	// Load account number and sequence
-	loadAccountInfo()
 
 	recaptcha.Init(recaptchaKey)
 
@@ -591,7 +337,7 @@ func main() {
 	mux.HandleFunc("/claim", createGetCoinsHandler(db))
 
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://faucet.terra.money", "http://localhost", "localhost", "http://localhost:3000", "http://localhost:8080"},
+		AllowedOrigins:   []string{"https://faucet.palomachain.com", "http://localhost", "localhost", "http://localhost:3000", "http://localhost:8080"},
 		AllowCredentials: true,
 	})
 
