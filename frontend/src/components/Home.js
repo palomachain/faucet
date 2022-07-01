@@ -78,9 +78,9 @@ class HomeComponent extends React.Component {
         response: this.state.response,
       })
       .then((res) => {
-        let text = res.data;
+        let text = res.statusText;
 
-        if (text === '') {
+        if (text === 'OK') {
           toast.success(
             <div>
               <p>Tokens Sent!</p>
@@ -107,7 +107,7 @@ class HomeComponent extends React.Component {
         //   </div>
         // );
 
-        //resetForm();
+        resetForm();
       })
       .catch((err) => {
         let errText = err.message;
