@@ -65,11 +65,11 @@ class HomeComponent extends React.Component {
       verified: false,
     });
 
-    this.recaptchaRef.current.reset();
+    //this.recaptchaRef.current.reset();
 
-    setTimeout(() => {
-      this.setState({ sending: false });
-    }, REQUEST_LIMIT_SECS * 1000);
+    // setTimeout(() => {
+    //   this.setState({ sending: false });
+    // }, REQUEST_LIMIT_SECS * 1000);
 
     axios
       .post(network.faucetUrl, {
@@ -107,7 +107,7 @@ class HomeComponent extends React.Component {
         //   </div>
         // );
 
-        resetForm();
+        //resetForm();
       })
       .catch((err) => {
         let errText = err.message;
