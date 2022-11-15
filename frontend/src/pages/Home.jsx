@@ -1,17 +1,19 @@
 import React from 'react';
-// import cx from "classnames";
 import ReCAPTCHA from 'react-google-recaptcha';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import * as bech32 from 'bech32';
-import { networks } from '../config';
+import { networks, siteKey } from '../config';
+import NetworkContext from '../contexts/NetworkContext';
+
+import Section from '../components/Section';
+import Button from '../components/Button';
+import Icons from '../components/Icons';
 
 import 'react-toastify/dist/ReactToastify.css';
-
-import '../App.scss';
-import NetworkContext from '../contexts/NetworkContext';
+import style from './Home.module.scss';
 
 const validateWalletAddress = (str) => {
   try {
@@ -144,28 +146,18 @@ class HomeComponent extends React.Component {
 
   render() {
     return (
-      <div>
-        <ToastContainer
-          position="top-right"
-          autoClose={5000}
-          hideProgressBar
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnVisibilityChange
-          pauseOnHover
-        />
-        <section>
+      <section className={style.homeContainer}>
+        <Section>
           <h2>Paloma Testnet Faucet</h2>
           <article>
-            Hello intrepid spaceperson! Use this faucet to get tokens for the
-            latest Paloma testnet. Please don't abuse this service—the number of
+            Hello Pigeons! Use this faucet to get GRAIN tokens for the latest
+            Paloma Testnest. Plase don’t abuse this service -the number of
             available tokens is limited.
           </article>
-          <div className="recaptcha">
+          <div className={style.recaptcha}>
             <ReCAPTCHA
               ref={this.recaptchaRef}
-              sitekey="6Le7bHcgAAAAADVJmQmNw2E1ACMwS-mkuarfahTc"
+              sitekey={siteKey}
               onChange={this.handleCaptcha}
             />
           </div>
@@ -178,8 +170,8 @@ class HomeComponent extends React.Component {
             onSubmit={this.handleSubmit}
           >
             {({ errors, touched }) => (
-              <Form className="inputContainer">
-                <div className="input">
+              <Form className={style.inputContainer}>
+                <div className={style.input}>
                   <Field
                     name="address"
                     placeholder="Testnet address"
@@ -190,26 +182,59 @@ class HomeComponent extends React.Component {
                   ) : null}
                 </div>
                 <Field type="hidden" name="denom" value="uluna" />
-                <div className="buttonContainer">
-                  <button
-                    disabled={!this.state.verified || this.state.sending}
-                    type="submit"
-                  >
-                    <i aria-hidden="true" className="material-icons">
-                      send
-                    </i>
-                    <span>
-                      {this.state.sending
-                        ? 'Waiting for next tap'
-                        : 'Send me tokens'}
-                    </span>
-                  </button>
-                </div>
+                <Button
+                  disabled={!this.state.verified || this.state.sending}
+                  type="submit"
+                  color="pink"
+                >
+                  <img src={Icons.RightArrow} />
+                  <span>
+                    {this.state.sending
+                      ? 'Waiting for next tap'
+                      : 'Send me tokens'}
+                  </span>
+                  <img src={Icons.Grain} />
+                </Button>
               </Form>
             )}
           </Formik>
-        </section>
-      </div>
+        </Section>
+        <Section className={style.joinSection}>
+          <h2>Need a testnest wallet address?</h2>
+          <article>
+            Download Nest, Paloma’s Wallet, in the Google Chrome Web Store. Join
+            Paloma’s discord server to connect with the flock.
+          </article>
+          <div className={style.communityButtons}>
+            <Button
+              color="pink"
+              target="_blank"
+              href="https://chrome.google.com/webstore/detail/paloma-nestbeta/cjmmdephaciiailjnoikekdebkcbcfmi?hl=en&authuser=1"
+            >
+              <img src={Icons.Egg} />
+              <span>Download Nest Wallet</span>
+            </Button>
+            <Button
+              color="black"
+              target="_blank"
+              href="https://discord.gg/tNqkNHvVNc"
+            >
+              <img src={Icons.Discord} />
+              <span>Join the Community</span>
+            </Button>
+          </div>
+        </Section>
+        <ToastContainer
+          position="top-right"
+          autoClose={5000}
+          hideProgressBar
+          newestOnTop
+          closeOnClick
+          rtl={false}
+          pauseOnVisibilityChange
+          pauseOnHover
+        />
+      </section>
     );
   }
 }
