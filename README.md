@@ -4,30 +4,12 @@ Paloma Testnet Faucet is a client tool that allows anyone to easily request a no
 
 **WARNING**: Tokens recieved over the faucet are not real assets and have no market value.
 
-This faucet implementation is a fork of the [Cosmos Faucet](https://github.com/cosmos/faucet).
 
 ## Get tokens on Paloma testnets
 
-Using the testnets is really easy. Simply go to https://github.com/palomachain/paloma and follow the instructions to get GRAINs. 
-
-## Usage
-For FE development see [Readme in frontend folder](https://github.com/palomachain/faucet/tree/main/frontend)
+To Get Tokens Please Go to the following https://faucet.palomaswap.com 
 
 
-Build the docker image.
+## NOTE: DOCKER FILE IS NO LONGER USED
 
-```bash
-docker build -t faucet .
-```
-
-Run it with the mnemonic and recaptcha key as env vars.
-
-```bash
-docker run -p 3000:3000 \
-    -e MNEMONIC="$(cat mnemonic.txt)" \
-    -e RECAPTCHA_KEY=potato \
-    -e PORT=8080 \
-    -e LCD_URL=http://165.232.91.129:1317 \
-    -e CHAIN_ID=paloma \
-    faucet
-```
+Currently the only part of this repo that is viable is the front end piece. We not use a GO application for backend pieces.
