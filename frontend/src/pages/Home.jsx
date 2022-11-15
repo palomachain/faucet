@@ -80,9 +80,10 @@ class HomeComponent extends React.Component {
         response: this.state.response,
       })
       .then((res) => {
-        let text = res.data;
+        console.log(res);
+        let text = res.statusText;
 
-        if (text === '') {
+        if (text === 'OK') {
           toast.success(
             <div>
               <p>Tokens Sent!</p>
