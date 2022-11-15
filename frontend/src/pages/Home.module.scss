@@ -1,0 +1,66 @@
+.homeContainer {
+  .recaptcha {
+    margin: 30px 0 20px;
+  }
+
+  .inputContainer {
+    ::placeholder {
+      /* Chrome, Firefox, Opera, Safari 10.1+ */
+      color: #919191 !important;
+      opacity: 1; /* Firefox */
+    }
+    :-ms-input-placeholder {
+      /* Internet Explorer 10-11 */
+      color: #919191 !important;
+    }
+    ::-ms-input-placeholder {
+      /* Microsoft Edge */
+      color: #919191 !important;
+    }
+
+    .fieldError {
+      color: #ff5561;
+      padding: 5px 3px 0;
+      font-size: 13px;
+    }
+
+    .input {
+      position: relative;
+      margin: 20px 0;
+      input {
+        appearance: none;
+        background: #fff;
+        border: solid 1px #2c2c2c;
+        border-radius: 6px;
+        height: 68px;
+        padding: 0 10px;
+        width: 100%;
+        outline: 0;
+        color: #2c2c2c;
+        box-sizing: border-box;
+        font-size: 16px;
+        -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+
+        &:disabled,
+        &:read-only {
+          background: rgba(14, 60, 165, 0.03);
+        }
+
+        &:focus {
+          border: solid 1px #2c2c2c;
+        }
+      }
+    }
+  }
+
+  .joinSection {
+    margin-top: 20px;
+  }
+
+  .communityButtons {
+    margin: 30px 0px 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 27px;
+  }
+}

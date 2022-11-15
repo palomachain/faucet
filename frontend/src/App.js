@@ -2,7 +2,7 @@ import React, { Component } from 'react';
 import { BrowserRouter as Router, Route } from 'react-router-dom';
 import './App.scss';
 import SelectNetworks from './components/SelectNetworks';
-import Home from './components/Home';
+import Home from './pages/Home';
 
 class App extends Component {
   showCurrentYear() {
