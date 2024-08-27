@@ -85,7 +85,6 @@ func getBalance(address string) (amount int64) {
 		"--node", rpcUrl,
 		"q", "bank", "balances",
 		"--output", "json",
-		"--denom", "ugrain",
 		"--chain-id", chainID,
 		address,
 	)
@@ -263,7 +262,7 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 			"--node", rpcUrl,
 			"tx", "bank", "send",
 			"-y",
-			"--broadcast-mode", "block",
+			"--broadcast-mode", "sync",
 			"--chain-id", chainID,
 			"--fees", "200000ugrain",
 			bankAddress,
