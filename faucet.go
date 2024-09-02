@@ -79,14 +79,15 @@ type BalanceResponse struct {
 	Balance CoreCoin `json:"balance"`
 }
 
-func getBalance(address string) (amount int64) {
+func getBalance(address, denom string) (amount int64) {
 	cmd := exec.Command(
 		palomad,
 		"--node", rpcUrl,
-		"q", "bank", "balances",
+		"q", "bank", "balance",
 		"--output", "json",
 		"--chain-id", chainID,
 		address,
+		denom,
 	)
 	res, err := cmd.CombinedOutput()
 
@@ -103,6 +104,11 @@ func getBalance(address string) (amount int64) {
 	if err != nil {
 		panic(err)
 	}
+
+	if balance.Amount == "" {
+		return 0
+	}
+
 	amount, err = strconv.ParseInt(balance.Amount, 10, 64)
 	if err != nil {
 		panic(err)
@@ -154,7 +160,7 @@ func (requestLog *RequestLog) dripCoin(denom string) error {
 func checkAndUpdateLimit(db *leveldb.DB, account []byte, denom string) error {
 	address, _ := bech32.ConvertAndEncode("paloma", account)
 
-	if getBalance(address) >= amountTable[denom]*2 {
+	if getBalance(address, denom) >= amountTable[denom]*2 {
 		return errors.New("amount limit exceeded")
 	}
 
@@ -202,6 +208,7 @@ func createGetCoinsHandler(db *leveldb.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
+				fmt.Printf("req error: %v\n", err)
 				http.Error(w, err.(error).Error(), 400)
 			}
 		}()
